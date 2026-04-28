@@ -1,0 +1,22 @@
+{
+  "type": "module",
+  "name": "identityapi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.2",
+    "mysql2": "^3.22.3",
+    "nodemailer": "^8.0.5",
+    "nodemon": "^3.1.14",
+    "sequelize": "^6.37.8"
+  }
+}
