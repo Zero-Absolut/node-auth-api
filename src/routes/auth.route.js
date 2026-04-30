@@ -8,3 +8,5 @@ const route = Router();
 
 route.post("/register", validateRules, validateRulesUser, register);
 export default route;
+
+//route.post("/resend", )

@@ -5,7 +5,7 @@ export function activeUserTemplate(data) {
 
               <p>Para ativar sua conta, clique no botão abaixo:</p>
 
-              <a href="http://localhost:3000/ativar?token=${data}"
+              <a href="http://localhost:8080/resend?token=${data}"
                  style="
                    display: inline-block;
                    padding: 12px 20px;

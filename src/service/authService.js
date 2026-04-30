@@ -1,8 +1,9 @@
 import { User } from "../models/user.js";
-import { createPasswordHash } from "../utils/createPasswordHash.js";
+import { createdHash } from "../utils/createHash.js";
 import { createToken } from "../utils/createToken.js";
 import { activeUserTemplate } from "../templates/activeUser.js";
 import { sendEmail } from "../utils/sendMail.js";
+import { now } from "sequelize/lib/utils";
 
 export async function createUser(value) {
   try {
@@ -20,8 +21,7 @@ export async function createUser(value) {
       };
     }
 
-    // ✔️ corrigido nome da função
-    const passwordHash = await createPasswordHash(password);
+    const passwordHash = await createdHash(password);
 
     const token = createToken();
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -37,7 +37,6 @@ export async function createUser(value) {
 
     const subject = "Ative sua conta.";
 
-    // ✔️ ajustado para pegar apenas o html
     const { html } = activeUserTemplate(token);
 
     const send = await sendEmail({ email, subject, html });
@@ -61,7 +60,6 @@ export async function createUser(value) {
       code: "USER_CREATED",
     };
   } catch (err) {
-    // ✔️ mensagem ajustada (opcional, mas mais correta)
     console.error("Erro ao criar usuário:", err);
 
     return {
@@ -71,3 +69,44 @@ export async function createUser(value) {
     };
   }
 }
+
+export const resendMail = async (email) => {
+  try {
+    const user = await User.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: "Usuário não encontrado.",
+        code: "USER_NOT_FOUND",
+      };
+    }
+
+    const token = createToken();
+    const tokenHash = createUser(token);
+    const expire = new Date(Date.now() + 60 * 60 * 1000);
+
+    user.usersactivationToken = tokenHash;
+    user.tokenExpires = expire;
+    user.save();
+
+    const subject = "Ative sua conta.";
+    const { html } = activeUserTemplate(tokenHash);
+
+    const resend = sendEmail({ email, subject, html });
+
+    if (!resend) {
+      // continuar daqui amanha
+    }
+  } catch (err) {
+    console.error("Erro ao acessar base de dados.", err);
+
+    return {
+      success: false,
+      message: "Erro interno, tente novamente.",
+      code: "DATABASE_ACCESS_ERROR",
+    };
+  }
+};

@@ -35,7 +35,7 @@ export const User = conn.define("users", {
 });
 // Sincroniza o model Produtos com o banco de dados
 // force: false → não recria a tabela se ela já existir
-User.sync({ force: false })
+User.sync({ force: true })
   .then(() => {
     console.log("Tabela Usuarios criada ou sincronizada com sucesso");
   })

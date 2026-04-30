@@ -1,0 +1,27 @@
+export const errorMap = {
+  // 🔹 Usuário
+  USER_ALREADY_EXISTS: 409,
+  USER_NOT_FOUND: 404,
+  ACCOUNT_ALREADY_ACTIVE: 400,
+
+  // 🔹 Criação
+  USER_CREATED: 201,
+  USER_CREATED_EMAIL_FAILED: 201,
+
+  // 🔹 Email
+  EMAIL_NOT_SENT: 500,
+  RESEND_EMAIL_FAILED: 500,
+  RESEND_EMAIL_SUCCESS: 200,
+
+  // 🔹 Token
+  CODE_EXPIRED: 400,
+  TOKEN_NOT_EXPIRED: 400,
+
+  // 🔹 Validação / segurança
+  VALIDATION_ERROR: 400,
+  TOO_MANY_REQUESTS: 429,
+
+  // 🔹 Banco / interno
+  DATABASE_ACCESS_ERROR: 500,
+  INTERNAL_ERROR: 500,
+};

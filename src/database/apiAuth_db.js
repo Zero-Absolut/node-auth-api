@@ -1,6 +1,7 @@
 import { Sequelize } from "sequelize";
+import { config } from "../config/config.js";
 
-const conn = new Sequelize("authApi", "root", "123456", {
+const conn = new Sequelize(config.db, config.db_user, config.db_pass, {
   host: "localhost",
   dialect: "mysql",
 });
