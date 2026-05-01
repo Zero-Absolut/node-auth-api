@@ -1,9 +1,8 @@
 import { User } from "../models/user.js";
-import { createdHash } from "../utils/createHash.js";
+import { createHash } from "../utils/createHash.js";
 import { createToken } from "../utils/createToken.js";
 import { activeUserTemplate } from "../templates/activeUser.js";
 import { sendEmail } from "../utils/sendMail.js";
-import { now } from "sequelize/lib/utils";
 
 export async function createUser(value) {
   try {
@@ -11,9 +10,17 @@ export async function createUser(value) {
 
     const user = await User.findOne({
       where: { email },
+      attributes: ["id", "email", "isActive"],
     });
 
     if (user) {
+      if (user.isActive) {
+        return {
+          success: false,
+          message: "Conta já ativa",
+          code: "ACCOUNT_ALREADY_ACTIVE",
+        };
+      }
       return {
         success: false,
         message: "Usuário já cadastrado.",
@@ -21,9 +28,10 @@ export async function createUser(value) {
       };
     }
 
-    const passwordHash = await createdHash(password);
+    const passwordHash = await createHash(password);
 
     const token = createToken();
+    const tokenHash = await createHash(token);
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const newUser = await User.create({
@@ -31,7 +39,7 @@ export async function createUser(value) {
       email,
       password: passwordHash,
       isActive: false,
-      activationToken: token,
+      activationToken: tokenHash,
       tokenExpires: expires,
     });
 
@@ -39,16 +47,12 @@ export async function createUser(value) {
 
     const { html } = activeUserTemplate(token);
 
-    const send = await sendEmail({ email, subject, html });
-
-    if (!send.success) {
-      newUser.activationToken = null;
-      newUser.tokenExpires = null;
-
-      await newUser.save();
-
+    try {
+      await sendEmail({ email, subject, html });
+    } catch (err) {
+      console.error("Erro ao enviar e-mail", err.message);
       return {
-        success: true,
+        success: false,
         message: "Usuário criado, mas não foi possível enviar o email.",
         code: "USER_CREATED_EMAIL_FAILED",
       };
@@ -74,6 +78,13 @@ export const resendMail = async (email) => {
   try {
     const user = await User.findOne({
       where: { email },
+      attributes: [
+        "id",
+        "email",
+        "activationToken",
+        "tokenExpires",
+        "isActive",
+      ],
     });
 
     if (!user) {
@@ -83,23 +94,42 @@ export const resendMail = async (email) => {
         code: "USER_NOT_FOUND",
       };
     }
+    if (user.isActive) {
+      return {
+        success: false,
+        message: "Conta já ativa.",
+        code: "ACCOUNT_ALREADY_ACTIVE",
+      };
+    }
 
     const token = createToken();
-    const tokenHash = createUser(token);
-    const expire = new Date(Date.now() + 60 * 60 * 1000);
+    const tokenHash = await createHash(token);
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
 
-    user.usersactivationToken = tokenHash;
-    user.tokenExpires = expire;
-    user.save();
+    user.activationToken = tokenHash;
+    user.tokenExpires = expires;
+    await user.save();
 
     const subject = "Ative sua conta.";
-    const { html } = activeUserTemplate(tokenHash);
+    const { html } = activeUserTemplate(token);
 
-    const resend = sendEmail({ email, subject, html });
+    try {
+      await sendEmail({ email, subject, html });
+    } catch (err) {
+      console.error("erro ao reenviar e-mail", err.message);
 
-    if (!resend) {
-      // continuar daqui amanha
+      return {
+        success: false,
+        message: "Falha ao reenviar e-mail",
+        code: "RESEND_EMAIL_FAILED",
+      };
     }
+
+    return {
+      success: true,
+      message: "E-mail reenviado com sucesso",
+      code: "RESEND_EMAIL_SUCCESS",
+    };
   } catch (err) {
     console.error("Erro ao acessar base de dados.", err);
 

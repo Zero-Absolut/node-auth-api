@@ -3,8 +3,7 @@ import nodemailer from "nodemailer";
 export async function sendEmail({ email, subject, html }) {
   try {
     if (!email || !subject || !html) {
-      console.log("Dados inválidos para envio:", { email, subject, html });
-      return { success: false, message: "Dados inválidos no envio de email" };
+      throw new Error("INVALID_EMAIL_DATA");
     }
 
     const transporter = nodemailer.createTransport({
@@ -26,7 +25,6 @@ export async function sendEmail({ email, subject, html }) {
 
     return { success: true, message: "E-mail enviado com sucesso" };
   } catch (erro) {
-    console.error("Erro ao enviar email:", erro);
-    return { success: false, message: "Erro ao enviar email" };
+    throw new Error("EMAIL_SEND_ERROR");
   }
 }

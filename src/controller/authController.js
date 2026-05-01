@@ -1,4 +1,4 @@
-import { createUser } from "../service/authService.js";
+import { createUser, resendMail } from "../service/authService.js";
 import { errorMap } from "../utils/errorMap.js";
 
 export async function register(req, res) {

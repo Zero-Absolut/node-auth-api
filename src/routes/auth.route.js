@@ -3,10 +3,10 @@ import {
   validateRules,
   validateRulesUser,
 } from "../middlewares/validateRegister.js";
-import { register } from "../controller/authController.js";
+import { register, resend } from "../controller/authController.js";
 const route = Router();
 
 route.post("/register", validateRules, validateRulesUser, register);
 export default route;
 
-//route.post("/resend", )
+route.post("/resend", resend);
