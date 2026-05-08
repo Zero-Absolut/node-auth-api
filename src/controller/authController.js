@@ -1,4 +1,9 @@
-import { createUser, resendMail } from "../service/authService.js";
+import {
+  createUser,
+  loginUser,
+  resendMail,
+  userActivateAccount,
+} from "../service/authService.js";
 import { errorMap } from "../utils/errorMap.js";
 
 export async function register(req, res) {
@@ -7,24 +12,14 @@ export async function register(req, res) {
 
     const result = await createUser({ name, email, password });
 
+    const status = errorMap[result.code] || 500;
+
     if (!result.success) {
-      if (result.code === "USER_ALREADY_EXISTS") {
-        return res.status(409).json({
-          success: result.success,
-          message: result.message,
-          code: result.code,
-        });
-      }
-
-      if (result.code === "DATABASE_ACCESS_ERROR") {
-        return res.status(500).json({
-          success: result.success,
-          message: result.message,
-          code: result.code,
-        });
-      }
-
-      return res.status(500).json(result);
+      return res.status(status).json({
+        success: false,
+        message: result.message,
+        code: result.code,
+      });
     }
     return res.status(201).json(result);
   } catch (err) {
@@ -37,6 +32,38 @@ export async function register(req, res) {
     });
   }
 }
+
+export const activateAccount = async (req, res) => {
+  try {
+    const token = req.query.token;
+
+    const result = await userActivateAccount(token);
+
+    const status = errorMap[result.code] || 500;
+
+    if (!result.success) {
+      return res.status(status).json({
+        success: result.success,
+        message: result.message,
+        code: result.code,
+      });
+    }
+
+    return res.status(200).json({
+      success: result.success,
+      message: result.message,
+      code: result.code,
+    });
+  } catch (err) {
+    console.error("Erro interno", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro interno no servidor.",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
 
 export const resend = async (req, res) => {
   try {
@@ -73,6 +100,39 @@ export const resend = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Erro ao processar requisição.",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
+
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const result = await loginUser({ email, password });
+
+    if (!result.success) {
+      const status = errorMap[result.code] || 500;
+      return res.status(status).json({
+        success: result.success,
+        message: result.message,
+        code: result.code,
+      });
+    }
+    req.session.preAuth = {
+      IdUser: result.userId,
+      is2FAPending: true,
+    };
+    return res.status(200).json({
+      success: result.success,
+      message: result.message,
+      is2FAPending: result.is2FAPending,
+      code: result.code,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: "Falha ao processar dados",
       code: "INTERNAL_ERROR",
     });
   }

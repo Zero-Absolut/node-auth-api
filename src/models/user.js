@@ -32,6 +32,15 @@ export const User = conn.define("users", {
     type: DataTypes.DATE,
     allowNull: true,
   },
+
+  twoFactorCode: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  twoFactorCodeExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 });
 // Sincroniza o model Produtos com o banco de dados
 // force: false → não recria a tabela se ela já existir

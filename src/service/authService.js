@@ -2,7 +2,11 @@ import { User } from "../models/user.js";
 import { createHash } from "../utils/createHash.js";
 import { createToken } from "../utils/createToken.js";
 import { activeUserTemplate } from "../templates/activeUser.js";
+import { twoFactorAuthTemplate } from "../templates/twoFactorAuthTemplate.js";
 import { sendEmail } from "../utils/sendMail.js";
+import bcrypt from "bcrypt";
+import { twoFactorCode } from "../utils/twoFactorCode.js";
+import crypto from "crypto";
 
 export async function createUser(value) {
   try {
@@ -31,7 +35,7 @@ export async function createUser(value) {
     const passwordHash = await createHash(password);
 
     const token = createToken();
-    const tokenHash = await createHash(token);
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const newUser = await User.create({
@@ -74,6 +78,60 @@ export async function createUser(value) {
   }
 }
 
+export const userActivateAccount = async (token) => {
+  try {
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      where: {
+        activationToken: tokenHash,
+      },
+      attributes: ["id", "activationToken", "tokenExpires", "isActive"],
+    });
+    if (!user) {
+      return {
+        success: false,
+        message: "Token inválido.",
+        code: "INVALID_TOKEN",
+      };
+    }
+
+    if (user.isActive) {
+      return {
+        success: false,
+        message: "Conta já ativada.",
+        code: "ACCOUNT_ALREADY_ACTIVE",
+      };
+    }
+
+    if (user.tokenExpires < new Date()) {
+      return {
+        success: false,
+        message: "Token expirado.",
+        code: "TOKEN_EXPIRED",
+      };
+    }
+
+    user.isActive = true;
+    user.activationToken = null;
+    user.tokenExpires = null;
+    await user.save();
+
+    return {
+      success: true,
+      message: "Conta ativada com sucesso.",
+      code: "ACCOUNT_ACTIVATED",
+    };
+  } catch (err) {
+    console.error("Erro ao processar dados.", err);
+
+    return {
+      success: false,
+      message: "Erro ao validar token.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+};
+
 export const resendMail = async (email) => {
   try {
     const user = await User.findOne({
@@ -103,7 +161,7 @@ export const resendMail = async (email) => {
     }
 
     const token = createToken();
-    const tokenHash = await createHash(token);
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expires = new Date(Date.now() + 60 * 60 * 1000);
 
     user.activationToken = tokenHash;
@@ -136,6 +194,80 @@ export const resendMail = async (email) => {
     return {
       success: false,
       message: "Erro interno, tente novamente.",
+      code: "DATABASE_ACCESS_ERROR",
+    };
+  }
+};
+
+export const loginUser = async (data) => {
+  try {
+    const { email, password } = data;
+
+    const user = await User.findOne({
+      where: { email },
+      attributes: ["id", "email", "password", "isActive"],
+    });
+    if (!user) {
+      return {
+        success: false,
+        message: "Usuário ou senha inválidos.",
+        code: "USER_NOT_FOUND",
+      };
+    }
+    if (!user.isActive) {
+      return {
+        success: false,
+        message: "Ativa sua conta.",
+        code: "ACCOUNT_NOT_ACTIVE",
+      };
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return {
+        success: false,
+        message: "Usuário ou senha inválidos.",
+        code: "INVALID_CREDENTIALS",
+      };
+    }
+
+    const code2fa = twoFactorCode();
+    const hash2faCode = await createHash(code2fa);
+    const expires = Date.now() + 30 * 60 * 1000;
+
+    user.twoFactorCode = hash2faCode;
+    user.twoFactorCodeExpires = expires;
+    await user.save();
+
+    const subject = "Valide seu login.";
+    const { html } = twoFactorAuthTemplate(code2fa);
+
+    try {
+      await sendEmail({ email, subject, html });
+    } catch (err) {
+      console.error("Erro ao enviar e-mail", err.message);
+
+      return {
+        success: false,
+        message: "Erro ao enviar e-mail",
+        code: "EMAIL_NOT_SENT",
+      };
+    }
+
+    return {
+      success: true,
+      is2FAPending: true,
+      message:
+        "Insira o codigo enviado para o e-mail de cadastro para validar o login",
+      code: "TWO_FACTOR_REQUIRED",
+      userId: user.id,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      success: false,
+      message: "Erro ao acessar base de dados.",
       code: "DATABASE_ACCESS_ERROR",
     };
   }
