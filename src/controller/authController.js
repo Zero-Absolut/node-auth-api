@@ -142,12 +142,22 @@ export const login = async (req, res) => {
 
 export const verifyTwoFactorCode = async (req, res) => {
   try {
+    const { code } = req.body;
+
+    if (!req.session.preAuth) {
+      return res.status(401).json({
+        success: false,
+        message: "Sessão inválida.",
+        code: "UNAUTHORIZED",
+      });
+    }
+
     const userData = {
-      code: req.body,
-      id: session.preAuth.IdUser,
+      code,
+      id: req.session.preAuth.IdUser,
     };
 
-    if (!code || !/^\d{6}$/.test(code)) {
+    if (!userData.code || !/^\d{6}$/.test(userData.code)) {
       return res.status(400).json({
         success: false,
         message: "Código inválido.",
