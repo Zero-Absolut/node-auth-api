@@ -1,8 +1,10 @@
+import session from "express-session";
 import {
   createUser,
   loginUser,
   resendMail,
   userActivateAccount,
+  validateTwoFactorCode,
 } from "../service/authService.js";
 import { errorMap } from "../utils/errorMap.js";
 
@@ -133,6 +135,56 @@ export const login = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Falha ao processar dados",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
+
+export const verifyTwoFactorCode = async (req, res) => {
+  try {
+    const userData = {
+      code: req.body,
+      id: session.preAuth.IdUser,
+    };
+
+    if (!code || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({
+        success: false,
+        message: "Código inválido.",
+        code: "VALIDATION_ERROR",
+      });
+    }
+
+    const result = await validateTwoFactorCode(userData);
+
+    const status = errorMap[result.code] || 500;
+
+    if (!result.success) {
+      return res.status(status).json({
+        success: result.success,
+        message: result.message,
+        code: result.code,
+      });
+    }
+
+    delete req.session.preAuth;
+
+    req.session.user = {
+      id: result.data.id,
+      name: result.data.name,
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "Usuário logado com sucesso",
+      code: "LOGIN_SUCCESS",
+      data: req.session.user,
+    });
+  } catch (err) {
+    console.error("Erro ao processar dados.", err);
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao processar dados.",
       code: "INTERNAL_ERROR",
     });
   }

@@ -10,6 +10,7 @@ import {
   resend,
   login,
   activateAccount,
+  verifyTwoFactorCode,
 } from "../controller/authController.js";
 const route = Router();
 
@@ -21,3 +22,5 @@ route.get("/activate-account", activateAccount);
 route.post("/resend", resend);
 
 route.post("/login", validateLogin, validateLoginUser, login);
+
+route.post("/verify-2fa", verifyTwoFactorCode);

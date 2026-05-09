@@ -6,7 +6,7 @@ export const errorMap = {
   ACCOUNT_NOT_ACTIVE: 403,
   INVALID_CREDENTIALS: 401,
   ACCOUNT_ACTIVATED: 200,
-
+  LOGIN_SUCCESS: 200,
   // 🔹 Criação
   USER_CREATED: 201,
   USER_CREATED_EMAIL_FAILED: 201,
@@ -19,6 +19,9 @@ export const errorMap = {
   // 🔹 Token
   CODE_EXPIRED: 400,
   TOKEN_EXPIRED: 400,
+
+  // Code
+  INVALID_CODE: 400,
 
   // 🔹 Validação / segurança
   VALIDATION_ERROR: 400,

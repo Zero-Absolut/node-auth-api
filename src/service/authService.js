@@ -272,3 +272,60 @@ export const loginUser = async (data) => {
     };
   }
 };
+
+export const validateTwoFactorCode = async (data) => {
+  try {
+    const { code, id } = data;
+
+    const user = await User.findByPk(id, {
+      attributes: ["id", "name", "twoFactorCode", "twoFactorCodeExpires"],
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: "Código inválido.",
+        code: "INVALID_CODE",
+      };
+    }
+
+    if (user.twoFactorCodeExpires < new Date()) {
+      return {
+        success: false,
+        message: "Código expirado",
+        code: "CODE_EXPIRED",
+      };
+    }
+    const codeMatch = await bcrypt.compare(code, user.twoFactorCode);
+
+    if (!codeMatch) {
+      return {
+        success: false,
+        message: "Código inválido",
+        code: "INVALID_CODE",
+      };
+    }
+
+    user.twoFactorCode = null;
+    user.twoFactorCodeExpires = null;
+    await user.save();
+
+    return {
+      success: true,
+      message: "Código válido",
+      code: "LOGIN_SUCCESS",
+      data: {
+        id: user.id,
+        name: user.name,
+      },
+    };
+  } catch (err) {
+    console.error("Erro ao acessar base de dados", err);
+
+    return {
+      success: false,
+      message: "Erro ao acessar base de dados.",
+      code: "DATABASE_ACCESS_ERROR",
+    };
+  }
+};
