@@ -5,6 +5,7 @@ import {
   resendMail,
   userActivateAccount,
   validateTwoFactorCode,
+  valideResendTwoFactorCode,
 } from "../service/authService.js";
 import { errorMap } from "../utils/errorMap.js";
 
@@ -69,17 +70,17 @@ export const activateAccount = async (req, res) => {
 
 export const resend = async (req, res) => {
   try {
-    const { email } = req.body;
+    const id = req.session.preAuth.IdUser;
 
-    if (!email) {
-      return res.status(400).json({
+    if (!id) {
+      return res.status(401).json({
         success: false,
-        message: "E-mail obrigatório",
-        code: "VALIDATION_ERROR",
+        message: "Sessão expirada, refaça novamente o login.",
+        code: "INVALID_SESSION",
       });
     }
 
-    const result = await resendMail(email);
+    const result = await resendMail(id);
 
     if (!result.success) {
       const status = errorMap[result.code] || 500;
@@ -97,7 +98,7 @@ export const resend = async (req, res) => {
       code: result.code,
     });
   } catch (err) {
-    console.error("Erro ao processar a requisição", err);
+    console.error("Erro ao processar requisição", err);
 
     return res.status(500).json({
       success: false,
@@ -115,16 +116,30 @@ export const login = async (req, res) => {
 
     if (!result.success) {
       const status = errorMap[result.code] || 500;
+
+      if (result.code === "ACCOUNT_NOT_ACTIVE") {
+        req.session.preAuth = {
+          IdUser: result.userId,
+        };
+
+        return res.status(status).json({
+          success: result.success,
+          message: result.message,
+          code: result.code,
+        });
+      }
       return res.status(status).json({
         success: result.success,
         message: result.message,
         code: result.code,
       });
     }
+
     req.session.preAuth = {
       IdUser: result.userId,
       is2FAPending: true,
     };
+
     return res.status(200).json({
       success: result.success,
       message: result.message,
@@ -177,12 +192,12 @@ export const verifyTwoFactorCode = async (req, res) => {
       });
     }
 
-    delete req.session.preAuth;
-
     req.session.user = {
       id: result.data.id,
       name: result.data.name,
     };
+
+    delete req.session.preAuth;
 
     return res.status(200).json({
       success: true,
@@ -192,6 +207,45 @@ export const verifyTwoFactorCode = async (req, res) => {
     });
   } catch (err) {
     console.error("Erro ao processar dados.", err);
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao processar dados.",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
+
+export const resendTwoFactorCode = async (req, res) => {
+  try {
+    if (!req.session.preAuth) {
+      return res.status(401).json({
+        success: false,
+        message: "Usuário não autenticado.",
+        code: "UNAUTHORIZED",
+      });
+    }
+    const id = req.session.preAuth.IdUser;
+
+    const result = await valideResendTwoFactorCode(id);
+
+    if (!result.success) {
+      const status = errorMap[result.code] || 500;
+
+      return res.status(status).json({
+        success: result.success,
+        message: result.message,
+        code: result.code,
+      });
+    }
+
+    return res.status(200).json({
+      success: result.success,
+      message: result.message,
+      code: result.code,
+    });
+  } catch (err) {
+    console.error("Erro ao processar dados.", err);
+
     return res.status(500).json({
       success: false,
       message: "Erro ao processar dados.",

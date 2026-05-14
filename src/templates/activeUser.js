@@ -1,11 +1,11 @@
-export function activeUserTemplate(data) {
+export function activeUserTemplate(token) {
   return {
     html: `
             <div style="font-family: Arial; text-align: center;">
 
               <p>Para ativar sua conta, clique no botão abaixo:</p>
 
-              <a href="http://localhost:8080/activate-account?token=${data}"
+              <a href="http://127.0.0.1:5500/pages/verify-account.html?token=${token}"
                  style="
                    display: inline-block;
                    padding: 12px 20px;

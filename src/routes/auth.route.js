@@ -11,11 +11,12 @@ import {
   login,
   activateAccount,
   verifyTwoFactorCode,
+  resendTwoFactorCode,
 } from "../controller/authController.js";
+
 const route = Router();
 
 route.post("/register", validateRules, validateRulesUser, register);
-export default route;
 
 route.get("/activate-account", activateAccount);
 
@@ -24,3 +25,9 @@ route.post("/resend", resend);
 route.post("/login", validateLogin, validateLoginUser, login);
 
 route.post("/verify-2fa", verifyTwoFactorCode);
+
+route.post("/resend-2fa", resendTwoFactorCode);
+
+//route.post("/google", googleLogin)
+
+export default route;

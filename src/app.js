@@ -1,7 +1,7 @@
 import express from "express";
 import authRoute from "./routes/index.js";
 import * as user from "./models/user.js";
-
+import cors from "cors";
 import session from "express-session";
 
 const app = express();
@@ -19,6 +19,14 @@ app.use(
       httpOnly: true,
       maxAge: 1000 * 60 * 10,
     },
+  }),
+);
+
+app.use(
+  cors({
+    origin: "http://127.0.0.1:5500",
+
+    credentials: true,
   }),
 );
 

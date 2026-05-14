@@ -15,14 +15,22 @@ export const User = conn.define("users", {
 
   password: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
 
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  provider: {
+    type: DataTypes.ENUM("local", "google"),
+    defaultValue: "local",
+  },
 
+  googleId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   activationToken: {
     type: DataTypes.STRING,
     allowNull: true,

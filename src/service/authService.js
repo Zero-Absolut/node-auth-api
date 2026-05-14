@@ -132,18 +132,21 @@ export const userActivateAccount = async (token) => {
   }
 };
 
-export const resendMail = async (email) => {
+export const resendMail = async (id) => {
   try {
-    const user = await User.findOne({
-      where: { email },
-      attributes: [
-        "id",
-        "email",
-        "activationToken",
-        "tokenExpires",
-        "isActive",
-      ],
-    });
+    const user = await User.findByPk(
+      id,
+
+      {
+        attributes: [
+          "id",
+          "email",
+          "activationToken",
+          "tokenExpires",
+          "isActive",
+        ],
+      },
+    );
 
     if (!user) {
       return {
@@ -172,7 +175,11 @@ export const resendMail = async (email) => {
     const { html } = activeUserTemplate(token);
 
     try {
-      await sendEmail({ email, subject, html });
+      await sendEmail({
+        email: user.email,
+        subject,
+        html,
+      });
     } catch (err) {
       console.error("erro ao reenviar e-mail", err.message);
 
@@ -187,6 +194,7 @@ export const resendMail = async (email) => {
       success: true,
       message: "E-mail reenviado com sucesso",
       code: "RESEND_EMAIL_SUCCESS",
+      id: user.id,
     };
   } catch (err) {
     console.error("Erro ao acessar base de dados.", err);
@@ -217,8 +225,9 @@ export const loginUser = async (data) => {
     if (!user.isActive) {
       return {
         success: false,
-        message: "Ativa sua conta.",
+        message: "Ativa sua conta para concluir o login.",
         code: "ACCOUNT_NOT_ACTIVE",
+        userId: user.id,
       };
     }
 
@@ -321,6 +330,68 @@ export const validateTwoFactorCode = async (data) => {
     };
   } catch (err) {
     console.error("Erro ao acessar base de dados", err);
+
+    return {
+      success: false,
+      message: "Erro ao acessar base de dados.",
+      code: "DATABASE_ACCESS_ERROR",
+    };
+  }
+};
+
+export const valideResendTwoFactorCode = async (id) => {
+  try {
+    const user = await User.findByPk(id, {
+      attributes: [
+        "id",
+        "name",
+        "email",
+        "twoFactorCode",
+        "twoFactorCodeExpires",
+      ],
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: "Usuário não encontrado.",
+        code: "USER_NOT_FOUND",
+      };
+    }
+
+    const code2fa = twoFactorCode();
+    const hash2faCode = await createHash(code2fa);
+    const expires = Date.now() + 30 * 60 * 1000;
+    const email = user.email;
+    user.twoFactorCode = hash2faCode;
+    user.twoFactorCodeExpires = expires;
+    await user.save();
+
+    const subject = "Valide seu login.";
+    const { html } = twoFactorAuthTemplate(code2fa);
+
+    try {
+      await sendEmail({ email, subject, html });
+    } catch (err) {
+      console.error("Erro ao enviar e-mail", err.message);
+
+      return {
+        success: false,
+        message: "Erro ao enviar e-mail",
+        code: "EMAIL_NOT_SENT",
+      };
+    }
+
+    return {
+      success: true,
+      is2FAPending: true,
+      message:
+        "Insira o codigo enviado para o e-mail de cadastro para validar o login",
+      code: "TWO_FACTOR_REQUIRED",
+      userId: user.id,
+    };
+  } catch (err) {
+    console.error("Erro ao acessar base de dados.", err);
 
     return {
       success: false,
