@@ -53,19 +53,7 @@ export const validateLogin = [
     .withMessage("Formato de e-mail inválido")
     .normalizeEmail(),
 
-  body("password")
-    .notEmpty()
-    .withMessage("Senha necessária.")
-    .isLength({ min: 8 })
-    .withMessage("A senha deve conter no mínimo 8 caracteres.")
-    .matches(/[A-Z]/)
-    .withMessage("A senha deve conter ao menos uma letra maiúscula.")
-    .matches(/[a-z]/)
-    .withMessage("A senha deve conter ao menos uma letra minúscula.")
-    .matches(/[0-9]/)
-    .withMessage("A senha deve conter ao menos um numero")
-    .matches(/[^A-Za-z0-9]/)
-    .withMessage("A senha deve conter ao menos um caractere especial."),
+  body("password").notEmpty().withMessage("Senha necessária."),
 ];
 
 export function validateRulesUser(req, res, next) {

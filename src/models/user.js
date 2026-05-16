@@ -49,6 +49,24 @@ export const User = conn.define("users", {
     type: DataTypes.DATE,
     allowNull: true,
   },
+
+  failed_login_attempts: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  isBlocked: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  unlockToken: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  unlockTokenExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 });
 // Sincroniza o model Produtos com o banco de dados
 // force: false → não recria a tabela se ela já existir

@@ -1,4 +1,3 @@
-import session from "express-session";
 import {
   createUser,
   loginUser,
@@ -6,7 +5,9 @@ import {
   userActivateAccount,
   validateTwoFactorCode,
   valideResendTwoFactorCode,
+  unlockUserAccount,
 } from "../service/authService.js";
+
 import { errorMap } from "../utils/errorMap.js";
 
 export async function register(req, res) {
@@ -17,14 +18,7 @@ export async function register(req, res) {
 
     const status = errorMap[result.code] || 500;
 
-    if (!result.success) {
-      return res.status(status).json({
-        success: false,
-        message: result.message,
-        code: result.code,
-      });
-    }
-    return res.status(201).json(result);
+    return res.status(status).json(result);
   } catch (err) {
     console.error("Erro ao inserir novo usuário", err);
 
@@ -44,19 +38,7 @@ export const activateAccount = async (req, res) => {
 
     const status = errorMap[result.code] || 500;
 
-    if (!result.success) {
-      return res.status(status).json({
-        success: result.success,
-        message: result.message,
-        code: result.code,
-      });
-    }
-
-    return res.status(200).json({
-      success: result.success,
-      message: result.message,
-      code: result.code,
-    });
+    return res.status(status).json(result);
   } catch (err) {
     console.error("Erro interno", err);
 
@@ -70,7 +52,7 @@ export const activateAccount = async (req, res) => {
 
 export const resend = async (req, res) => {
   try {
-    const id = req.session.preAuth.IdUser;
+    const id = req.session.preAuth?.IdUser;
 
     if (!id) {
       return res.status(401).json({
@@ -82,21 +64,9 @@ export const resend = async (req, res) => {
 
     const result = await resendMail(id);
 
-    if (!result.success) {
-      const status = errorMap[result.code] || 500;
+    const status = errorMap[result.code] || 500;
 
-      return res.status(status).json({
-        success: result.success,
-        message: result.message,
-        code: result.code,
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: result.message,
-      code: result.code,
-    });
+    return res.status(status).json(result);
   } catch (err) {
     console.error("Erro ao processar requisição", err);
 
@@ -114,39 +84,19 @@ export const login = async (req, res) => {
 
     const result = await loginUser({ email, password });
 
-    if (!result.success) {
-      const status = errorMap[result.code] || 500;
-
-      if (result.code === "ACCOUNT_NOT_ACTIVE") {
-        req.session.preAuth = {
-          IdUser: result.userId,
-        };
-
-        return res.status(status).json({
-          success: result.success,
-          message: result.message,
-          code: result.code,
-        });
-      }
-      return res.status(status).json({
-        success: result.success,
-        message: result.message,
-        code: result.code,
-      });
+    if (result.code === "ACCOUNT_NOT_ACTIVE" || result.success) {
+      req.session.preAuth = {
+        IdUser: result.userId,
+        is2FAPending: result.success || undefined,
+      };
     }
 
-    req.session.preAuth = {
-      IdUser: result.userId,
-      is2FAPending: true,
-    };
+    const status = errorMap[result.code] || 500;
 
-    return res.status(200).json({
-      success: result.success,
-      message: result.message,
-      is2FAPending: result.is2FAPending,
-      code: result.code,
-    });
+    return res.status(status).json(result);
   } catch (err) {
+    console.error("Erro ao processar login", err);
+
     return res.status(500).json({
       success: false,
       message: "Falha ao processar dados",
@@ -167,12 +117,7 @@ export const verifyTwoFactorCode = async (req, res) => {
       });
     }
 
-    const userData = {
-      code,
-      id: req.session.preAuth.IdUser,
-    };
-
-    if (!userData.code || !/^\d{6}$/.test(userData.code)) {
+    if (!code || !/^\d{6}$/.test(code)) {
       return res.status(400).json({
         success: false,
         message: "Código inválido.",
@@ -180,33 +125,23 @@ export const verifyTwoFactorCode = async (req, res) => {
       });
     }
 
-    const result = await validateTwoFactorCode(userData);
+    const result = await validateTwoFactorCode({
+      code,
+      id: req.session.preAuth.IdUser,
+    });
+
+    if (result.success) {
+      req.session.user = result.data;
+
+      delete req.session.preAuth;
+    }
 
     const status = errorMap[result.code] || 500;
 
-    if (!result.success) {
-      return res.status(status).json({
-        success: result.success,
-        message: result.message,
-        code: result.code,
-      });
-    }
-
-    req.session.user = {
-      id: result.data.id,
-      name: result.data.name,
-    };
-
-    delete req.session.preAuth;
-
-    return res.status(200).json({
-      success: true,
-      message: "Usuário logado com sucesso",
-      code: "LOGIN_SUCCESS",
-      data: req.session.user,
-    });
+    return res.status(status).json(result);
   } catch (err) {
     console.error("Erro ao processar dados.", err);
+
     return res.status(500).json({
       success: false,
       message: "Erro ao processar dados.",
@@ -224,31 +159,87 @@ export const resendTwoFactorCode = async (req, res) => {
         code: "UNAUTHORIZED",
       });
     }
+
     const id = req.session.preAuth.IdUser;
 
     const result = await valideResendTwoFactorCode(id);
 
-    if (!result.success) {
-      const status = errorMap[result.code] || 500;
+    const status = errorMap[result.code] || 500;
 
-      return res.status(status).json({
-        success: result.success,
-        message: result.message,
-        code: result.code,
-      });
-    }
-
-    return res.status(200).json({
-      success: result.success,
-      message: result.message,
-      code: result.code,
-    });
+    return res.status(status).json(result);
   } catch (err) {
     console.error("Erro ao processar dados.", err);
 
     return res.status(500).json({
       success: false,
       message: "Erro ao processar dados.",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
+
+export const unlockAccount = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Necessário informar o e-mail.",
+        code: "EMAIL_REQUIRED",
+      });
+    }
+
+    const result = await unlockUserAccount(email);
+
+    const status = errorMap[result.code];
+
+    return res.status(status).json(result);
+  } catch (err) {
+    console.error(err, "Erro ao processar requisição");
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao processar requisição",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    if (!req.session) {
+      return res.status(401).json({
+        success: false,
+        message: "Sessão não encontrada.",
+        code: "UNAUTHORIZED",
+      });
+    }
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Erro ao destruir sessão.", err);
+
+        return res.status(500).json({
+          success: false,
+          message: "Erro ao realizar logout.",
+          code: "LOGOUT_FAILED",
+        });
+      }
+
+      res.clearCookie("connect.sid");
+
+      return res.status(200).json({
+        success: true,
+        message: "Logout realizado com sucesso.",
+        code: "LOGOUT_SUCCESS",
+      });
+    });
+  } catch (err) {
+    console.error("Erro interno.", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro interno no servidor.",
       code: "INTERNAL_ERROR",
     });
   }

@@ -6,6 +6,7 @@ import { twoFactorAuthTemplate } from "../templates/twoFactorAuthTemplate.js";
 import { sendEmail } from "../utils/sendMail.js";
 import bcrypt from "bcrypt";
 import { twoFactorCode } from "../utils/twoFactorCode.js";
+import { unlockAccountTemplate } from "../templates/unlockUser.js";
 import crypto from "crypto";
 
 export async function createUser(value) {
@@ -14,17 +15,10 @@ export async function createUser(value) {
 
     const user = await User.findOne({
       where: { email },
-      attributes: ["id", "email", "isActive"],
+      attributes: ["id", "email"],
     });
 
     if (user) {
-      if (user.isActive) {
-        return {
-          success: false,
-          message: "Conta já ativa",
-          code: "ACCOUNT_ALREADY_ACTIVE",
-        };
-      }
       return {
         success: false,
         message: "Usuário já cadastrado.",
@@ -213,13 +207,31 @@ export const loginUser = async (data) => {
 
     const user = await User.findOne({
       where: { email },
-      attributes: ["id", "email", "password", "isActive"],
+      attributes: [
+        "id",
+        "email",
+        "password",
+        "isActive",
+        "failed_login_attempts",
+        "isBlocked",
+      ],
     });
     if (!user) {
       return {
         success: false,
         message: "Usuário ou senha inválidos.",
         code: "USER_NOT_FOUND",
+      };
+    }
+
+    if (user.isBlocked) {
+      return {
+        success: false,
+        message:
+          "Usuário bloqueado temporariamente, siga as intruções a seguir.",
+        code: "ACCOUNT_BLOCKED",
+        userId: user.id,
+        failed_login_attempts: user.failed_login_attempts,
       };
     }
     if (!user.isActive) {
@@ -234,10 +246,27 @@ export const loginUser = async (data) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
+      user.failed_login_attempts += 1;
+      await user.save();
+
+      if (user.failed_login_attempts === 5) {
+        user.isBlocked = true;
+        await user.save();
+
+        return {
+          success: false,
+          message:
+            "Usuário bloqueado temporariamente, siga as intruções a seguir.",
+          code: "ACCOUNT_BLOCKED",
+          userId: user.id,
+          failed_login_attempts: user.failed_login_attempts,
+        };
+      }
       return {
         success: false,
         message: "Usuário ou senha inválidos.",
         code: "INVALID_CREDENTIALS",
+        failed_login_attempts: user.failed_login_attempts,
       };
     }
 
@@ -287,7 +316,13 @@ export const validateTwoFactorCode = async (data) => {
     const { code, id } = data;
 
     const user = await User.findByPk(id, {
-      attributes: ["id", "name", "twoFactorCode", "twoFactorCodeExpires"],
+      attributes: [
+        "id",
+        "name",
+        "twoFactorCode",
+        "twoFactorCodeExpires",
+        "failed_login_attempts",
+      ],
     });
 
     if (!user) {
@@ -317,6 +352,7 @@ export const validateTwoFactorCode = async (data) => {
 
     user.twoFactorCode = null;
     user.twoFactorCodeExpires = null;
+    user.failed_login_attempts = 0;
     await user.save();
 
     return {
@@ -396,6 +432,80 @@ export const valideResendTwoFactorCode = async (id) => {
     return {
       success: false,
       message: "Erro ao acessar base de dados.",
+      code: "DATABASE_ACCESS_ERROR",
+    };
+  }
+};
+
+export const unlockUserAccount = async (email) => {
+  try {
+    const user = await User.findOne({
+      where: { email },
+      attributes: [
+        "id",
+        "name",
+        "email",
+        "isBlocked",
+        "unlockToken",
+        "unlockTokenExpires",
+        "isActive",
+      ],
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: "Usuario não encontrado",
+        code: "USER_NOT_FOUND",
+      };
+    }
+    if (!user.isActive) {
+      return {
+        success: false,
+        message: "Ative sua conta.",
+        code: "ACCOUNT_NOT_ACTIVATED",
+      };
+    }
+    if (!user.isBlocked) {
+      return {
+        success: false,
+        message: "Usuário ativo",
+        code: "ACCOUNT_ALREADY_ACTIVE",
+      };
+    }
+
+    const token = createToken();
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+    const subject = "Desbloqueie sua conta";
+    const { html } = unlockAccountTemplate(token);
+
+    user.unlockToken = tokenHash;
+    user.unlockTokenExpires = expires;
+    await user.save();
+
+    try {
+      await sendEmail({ email: user.email, subject, html });
+    } catch (err) {
+      console.error("Erro ao enviar e-mail", err.message);
+      return {
+        success: false,
+        message: "Não foi possível enviar o email.",
+        code: "EMAIL_NOT_SENT",
+      };
+    }
+
+    return {
+      success: true,
+      message: "E-mail enviado com sucesso.",
+      code: "UNLOCK_EMAIL_SENT",
+    };
+  } catch (err) {
+    console.error(err, "Erro ao acessar base de dados");
+
+    return {
+      success: false,
+      message: "Erro ao acessar base de dados",
       code: "DATABASE_ACCESS_ERROR",
     };
   }
