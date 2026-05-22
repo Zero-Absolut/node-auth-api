@@ -510,3 +510,70 @@ export const unlockUserAccount = async (email) => {
     };
   }
 };
+
+export const validateUnlockTokenService = async (token) => {
+  try {
+    console.log(token);
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      where: {
+        unlockToken: tokenHash,
+      },
+
+      attributes: [
+        "id",
+        "name",
+        "email",
+        "unlockToken",
+        "unlockTokenExpires",
+        "failed_login_attempts",
+        "isBlocked",
+      ],
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: "Token inválido.",
+        code: "INVALID_TOKEN",
+      };
+    }
+
+    if (!user.isBlocked) {
+      return {
+        success: false,
+        message: "Conta não bloqueada.",
+        code: "ACCOUNT_NOT_BLOCKED",
+      };
+    }
+
+    if (user.unlockTokenExpires < new Date()) {
+      return {
+        success: false,
+        message: "Token expirado",
+        code: "TOKEN_EXPIRED",
+      };
+    }
+
+    user.unlockToken = null;
+    user.unlockTokenExpires = null;
+    user.failed_login_attempts = 0;
+    user.isBlocked = false;
+    await user.save();
+
+    return {
+      success: true,
+      message: "Conta desbloqueada com sucesso.",
+      code: "ACCOUNT_UNLOCKED",
+    };
+  } catch (err) {
+    console.error("Erro ao acessar base de dados", err);
+
+    return {
+      success: false,
+      message: "Erro ao acessar base de dados",
+      code: "DATABASE_ACCESS_ERROR",
+    };
+  }
+};

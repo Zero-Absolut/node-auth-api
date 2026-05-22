@@ -9,6 +9,9 @@ export const errorMap = {
   LOGIN_SUCCESS: 200,
   UNAUTHORIZED: 401,
   ACCOUNT_BLOCKED: 403,
+  TWO_FACTOR_REQUIRED: 200,
+  ACCOUNT_NOT_BLOCKED: 400,
+  ACCOUNT_UNLOCKED: 200,
 
   //Google
   GOOGLE_TOKEN_REQUIRED: 400,
@@ -29,6 +32,7 @@ export const errorMap = {
   // 🔹 Token
   CODE_EXPIRED: 400,
   TOKEN_EXPIRED: 400,
+  INVALID_TOKEN: 401,
 
   // Code
   INVALID_CODE: 400,

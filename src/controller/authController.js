@@ -6,6 +6,7 @@ import {
   validateTwoFactorCode,
   valideResendTwoFactorCode,
   unlockUserAccount,
+  validateUnlockTokenService,
 } from "../service/authService.js";
 
 import { errorMap } from "../utils/errorMap.js";
@@ -201,6 +202,25 @@ export const unlockAccount = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Erro ao processar requisição",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
+
+export const validateUnlockTokenController = async (req, res) => {
+  try {
+    const token = req.query.token;
+
+    const result = await validateUnlockTokenService(token);
+    const status = errorMap[result.code];
+
+    return res.status(status).json(result);
+  } catch (err) {
+    console.error("Erro interno do sistema", err);
+
+    return res.status.json({
+      success: false,
+      message: "Erro interno.",
       code: "INTERNAL_ERROR",
     });
   }

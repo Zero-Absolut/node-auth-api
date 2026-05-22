@@ -14,6 +14,7 @@ import {
   resendTwoFactorCode,
   logout,
   unlockAccount,
+  validateUnlockTokenController,
 } from "../controller/authController.js";
 
 const route = Router();
@@ -33,6 +34,8 @@ route.post("/resend-2fa", resendTwoFactorCode);
 route.post("/logout", logout);
 
 route.post("/unlockAccount", unlockAccount);
+
+route.get("/unlockAccount", validateUnlockTokenController);
 
 //route.post("/google", googleLogin)
 
