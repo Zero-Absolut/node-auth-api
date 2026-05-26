@@ -4,6 +4,8 @@ import {
   validateRulesUser,
   validateLogin,
   validateLoginUser,
+  valideResetPassword,
+  valideResetPasswordUser,
 } from "../middlewares/validateRegister.js";
 import {
   register,
@@ -15,6 +17,8 @@ import {
   logout,
   unlockAccount,
   validateUnlockTokenController,
+  validTokenresetPassworController,
+  forgotPasswordController,
 } from "../controller/authController.js";
 
 const route = Router();
@@ -36,6 +40,15 @@ route.post("/logout", logout);
 route.post("/unlockAccount", unlockAccount);
 
 route.get("/unlockAccount", validateUnlockTokenController);
+
+route.get("/forgot-password", forgotPasswordController);
+
+route.post(
+  "/forgot-password",
+  valideResetPassword,
+  valideResetPasswordUser,
+  validTokenresetPassworController,
+);
 
 //route.post("/google", googleLogin)
 

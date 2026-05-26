@@ -82,3 +82,42 @@ export const validateLoginUser = (req, res, next) => {
 
   return next();
 };
+
+export const valideResetPassword = [
+  body("password")
+    .notEmpty()
+    .withMessage("Senha necessária.")
+    .isLength({ min: 8 })
+    .withMessage("A senha deve conter no mínimo 8 caracteres.")
+    .matches(/[A-Z]/)
+    .withMessage("A senha deve conter ao menos uma letra maiúscula.")
+    .matches(/[a-z]/)
+    .withMessage("A senha deve conter ao menos uma letra minúscula.")
+    .matches(/[0-9]/)
+    .withMessage("A senha deve conter ao menos um numero")
+    .matches(/[^A-Za-z0-9]/)
+    .withMessage("A senha deve conter ao menos um caractere especial."),
+
+  body("confirmPassword")
+    .notEmpty()
+    .withMessage("Necessário confirmar senha.")
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error("As senhas não conferem.");
+      }
+      return true;
+    }),
+];
+
+export const valideResetPasswordUser = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      code: "VALIDATION_ERROR",
+      errors: errors.array(),
+    });
+  }
+
+  return next();
+};

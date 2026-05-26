@@ -7,6 +7,8 @@ import {
   valideResendTwoFactorCode,
   unlockUserAccount,
   validateUnlockTokenService,
+  validTokenresetPasswordService,
+  forgotPasswordService,
 } from "../service/authService.js";
 
 import { errorMap } from "../utils/errorMap.js";
@@ -221,6 +223,54 @@ export const validateUnlockTokenController = async (req, res) => {
     return res.status.json({
       success: false,
       message: "Erro interno.",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
+
+export const forgotPasswordController = async (req, res) => {
+  try {
+    if (!req.body.email) {
+      return res.status(400).json({
+        success: false,
+        message: "Necessário informar o e-mail. ",
+        code: "EMAIL_REQUIRED",
+      });
+    }
+
+    const result = await forgotPasswordService(req.body.email);
+
+    const status = errorMap[result.code];
+
+    return res.status(status).json(result);
+  } catch (err) {
+    console.error("Erro ao processar requisição", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao processar requisição.",
+      code: "INTERNAL_ERROR",
+    });
+  }
+};
+
+export const validTokenresetPassworController = async (req, res) => {
+  try {
+    const data = {
+      password: req.body.password,
+      token: req.body.token,
+    };
+
+    const result = await validTokenresetPasswordService(data);
+    const status = errorMap[result.code] || 500;
+
+    return res.status(status).json(result);
+  } catch (err) {
+    console.error("Erro ao processar requisição", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao processar requisição",
       code: "INTERNAL_ERROR",
     });
   }

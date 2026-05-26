@@ -3,6 +3,7 @@ import { createHash } from "../utils/createHash.js";
 import { createToken } from "../utils/createToken.js";
 import { activeUserTemplate } from "../templates/activeUser.js";
 import { twoFactorAuthTemplate } from "../templates/twoFactorAuthTemplate.js";
+import { resetPasswordTemplate } from "../templates/resetPasswordTemplate.js";
 import { sendEmail } from "../utils/sendMail.js";
 import bcrypt from "bcrypt";
 import { twoFactorCode } from "../utils/twoFactorCode.js";
@@ -513,7 +514,6 @@ export const unlockUserAccount = async (email) => {
 
 export const validateUnlockTokenService = async (token) => {
   try {
-    console.log(token);
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
@@ -566,6 +566,117 @@ export const validateUnlockTokenService = async (token) => {
       success: true,
       message: "Conta desbloqueada com sucesso.",
       code: "ACCOUNT_UNLOCKED",
+    };
+  } catch (err) {
+    console.error("Erro ao acessar base de dados", err);
+
+    return {
+      success: false,
+      message: "Erro ao acessar base de dados",
+      code: "DATABASE_ACCESS_ERROR",
+    };
+  }
+};
+
+export const forgotPasswordService = async (email) => {
+  try {
+    const user = await User.findOne({
+      where: { email },
+
+      attributes: ["resetPassToken", "resetPassTokenExpires"],
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: "Usuário não encontrado.",
+        code: "USER_NOT_FOUND",
+      };
+    }
+
+    const forgotToken = createToken();
+
+    const forgotHashToken = crypto
+      .createHash("sha256")
+      .update(forgotToken)
+      .digest("hex");
+    const forgotExpiresToken = new Date(Date.now() + 15 * 60 * 1000);
+
+    const subject = "Redefina sua senha.";
+
+    const { html } = resetPasswordTemplate(forgotToken);
+
+    user.resetPassToken = forgotHashToken;
+    user.resetPassTokenExpires = forgotExpiresToken;
+    await user.save();
+
+    try {
+      await sendEmail({ email: email, subject, html });
+    } catch (err) {
+      console.error("Erro ao enviar e-mail", err.message);
+      return {
+        success: false,
+        message: "Não foi possível enviar o email.",
+        code: "EMAIL_NOT_SENT",
+      };
+    }
+
+    return {
+      success: true,
+      message: "E-mail enviado com sucesso.",
+      code: "PASSWORD_RESET_EMAIL_SENT",
+    };
+  } catch (err) {
+    console.error("Erro ao acessar base de dados.", err);
+
+    return {
+      success: false,
+      message: "Erro ao acessar base de dados.",
+      code: "DATABASE_ACCESS_ERROR",
+    };
+  }
+};
+
+export const validTokenresetPasswordService = async (data) => {
+  try {
+    const { password, token } = data;
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const passwordHash = await createHash(password);
+
+    const user = await User.findOne({
+      where: {
+        resetPassToken: tokenHash,
+      },
+      attributes: ["id", "password", "resetPassToken", "resetPassTokenExpires"],
+    });
+
+    if (!user) {
+      return {
+        sucess: false,
+        message: "Usuário não encontrado.",
+        code: "USER_NOT_FOUND",
+      };
+    }
+    if (user.resetPassTokenExpires < new Date()) {
+      return {
+        sucess: false,
+        message: "Token expirado.",
+        code: "TOKEN_EXPIRED",
+      };
+    }
+
+    user.resetPassToken = null;
+    user.resetPassTokenExpires = null;
+    user.password = passwordHash;
+
+    await user.save();
+
+    return {
+      success: true,
+      message: "Senha alterada com sucesso.",
+      code: "PASSWORD_RESET_SUCCESS",
     };
   } catch (err) {
     console.error("Erro ao acessar base de dados", err);

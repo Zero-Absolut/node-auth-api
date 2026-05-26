@@ -67,6 +67,16 @@ export const User = conn.define("users", {
     type: DataTypes.DATE,
     allowNull: true,
   },
+
+  resetPassToken: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  resetPassTokenExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 });
 // Sincroniza o model Produtos com o banco de dados
 // force: false → não recria a tabela se ela já existir
