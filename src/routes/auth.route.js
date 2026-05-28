@@ -41,10 +41,10 @@ route.post("/unlockAccount", unlockAccount);
 
 route.get("/unlockAccount", validateUnlockTokenController);
 
-route.get("/forgot-password", forgotPasswordController);
+route.post("/forgot-password", forgotPasswordController);
 
 route.post(
-  "/forgot-password",
+  "/reset-password",
   valideResetPassword,
   valideResetPasswordUser,
   validTokenresetPassworController,

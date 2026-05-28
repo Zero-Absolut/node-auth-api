@@ -1,4 +1,4 @@
-import { User } from "../models/user.js";
+import { User, PasswordHistories } from "../models/user.js";
 import { createHash } from "../utils/createHash.js";
 import { createToken } from "../utils/createToken.js";
 import { activeUserTemplate } from "../templates/activeUser.js";
@@ -32,6 +32,10 @@ export async function createUser(value) {
     const token = createToken();
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const passwordHistory = await PasswordHistories.create({
+      passwordHash: passwordHash,
+    });
 
     const newUser = await User.create({
       name,
@@ -583,7 +587,7 @@ export const forgotPasswordService = async (email) => {
     const user = await User.findOne({
       where: { email },
 
-      attributes: ["resetPassToken", "resetPassTokenExpires"],
+      attributes: ["id", "resetPassToken", "resetPassTokenExpires"],
     });
 
     if (!user) {
@@ -649,24 +653,65 @@ export const validTokenresetPasswordService = async (data) => {
       where: {
         resetPassToken: tokenHash,
       },
-      attributes: ["id", "password", "resetPassToken", "resetPassTokenExpires"],
+      attributes: [
+        "id",
+        "password",
+        "resetPassToken",
+        "resetPassTokenExpires",
+        "failed_login_attempts",
+      ],
     });
 
     if (!user) {
       return {
-        sucess: false,
+        success: false,
         message: "Usuário não encontrado.",
         code: "USER_NOT_FOUND",
       };
     }
     if (user.resetPassTokenExpires < new Date()) {
       return {
-        sucess: false,
+        success: false,
         message: "Token expirado.",
         code: "TOKEN_EXPIRED",
       };
     }
 
+    const oldPasswords = await PasswordHistories.findAll({
+      where: {
+        userId: user.id,
+      },
+
+      // ordena do mais novo para o mais antigo
+      order: [["createdAt", "DESC"]],
+
+      // limita quantidade
+      limit: 5,
+    });
+    //primeiro elemento do for e uma variavel q represnta o valor do indice do array(elemento) e o segundo e o array em si
+    for (const oldPassword of oldPasswords) {
+      const isSamePassword = await bcrypt.compare(
+        password,
+        oldPassword.passwordHash,
+      );
+      if (isSamePassword) {
+        return {
+          success: false,
+          message: "A nova senha deve ser diferente da atual.",
+          code: "PASSWORD_MUST_BE_DIFFERENT",
+        };
+      }
+    }
+
+    await PasswordHistories.create({
+      // senha antiga atual
+      passwordHash: user.password,
+
+      // dono da senha
+      userId: user.id,
+    });
+
+    user.failed_login_attempts = 0;
     user.resetPassToken = null;
     user.resetPassTokenExpires = null;
     user.password = passwordHash;

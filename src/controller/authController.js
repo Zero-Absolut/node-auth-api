@@ -230,7 +230,9 @@ export const validateUnlockTokenController = async (req, res) => {
 
 export const forgotPasswordController = async (req, res) => {
   try {
-    if (!req.body.email) {
+    const email = req.body.email;
+
+    if (!email) {
       return res.status(400).json({
         success: false,
         message: "Necessário informar o e-mail. ",
@@ -238,7 +240,7 @@ export const forgotPasswordController = async (req, res) => {
       });
     }
 
-    const result = await forgotPasswordService(req.body.email);
+    const result = await forgotPasswordService(email);
 
     const status = errorMap[result.code];
 
