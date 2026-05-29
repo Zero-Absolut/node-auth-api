@@ -33,10 +33,6 @@ export async function createUser(value) {
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    const passwordHistory = await PasswordHistories.create({
-      passwordHash: passwordHash,
-    });
-
     const newUser = await User.create({
       name,
       email,
@@ -44,6 +40,11 @@ export async function createUser(value) {
       isActive: false,
       activationToken: tokenHash,
       tokenExpires: expires,
+    });
+
+    const passwordHistory = await PasswordHistories.create({
+      passwordHash: passwordHash,
+      userId: newUser.id,
     });
 
     const subject = "Ative sua conta.";
@@ -688,6 +689,7 @@ export const validTokenresetPasswordService = async (data) => {
       // limita quantidade
       limit: 5,
     });
+
     //primeiro elemento do for e uma variavel q represnta o valor do indice do array(elemento) e o segundo e o array em si
     for (const oldPassword of oldPasswords) {
       const isSamePassword = await bcrypt.compare(
@@ -711,6 +713,25 @@ export const validTokenresetPasswordService = async (data) => {
       userId: user.id,
     });
 
+    const totalPasswords = await PasswordHistories.count({
+      where: {
+        userId: user.id,
+      },
+    });
+
+    if (totalPasswords > 10) {
+      const oldPasswordRegister = await PasswordHistories.findOne({
+        where: {
+          userId: user.id,
+        },
+        order: [["createdAt", "ASC"]],
+      });
+      if (!oldPasswordRegister) {
+        throw new Error("Histórico de senhas não encontrado.");
+      }
+
+      await oldPasswordRegister.destroy();
+    }
     user.failed_login_attempts = 0;
     user.resetPassToken = null;
     user.resetPassTokenExpires = null;

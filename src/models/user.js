@@ -84,13 +84,53 @@ export const User = conn.define("users", {
     allowNull: true,
   },
 });
-
+//entidade  historico de senhas salvas do usuario
 export const PasswordHistories = conn.define("password_histories", {
   passwordHash: {
     type: DataTypes.STRING,
     allowNull: false,
   },
 });
+
+//entidade de sessions
+
+export const UserSessions = conn.define("user_sessions", {
+  sessionId: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+
+  ipAddress: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  userAgent: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+
+  expiresAt: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+});
+
+User.hasMany(UserSessions, {
+  foreignKey: "userId",
+  onDelete: "CASCADE",
+});
+
+UserSessions.belongsTo(User, {
+  constraints: true,
+  foreignKey: "userId",
+});
+
 // hasMany
 // "um possui vários"
 User.hasMany(PasswordHistories, {
@@ -104,7 +144,8 @@ PasswordHistories.belongsTo(User, {
 });
 // Sincroniza o model Produtos com o banco de dados
 // force: false → não recria a tabela se ela já existir
-User.sync({ force: true })
+//force true recria tabela se a mesma existir
+User.sync({ force: false })
   .then(() => {
     console.log("Tabela Usuarios criada ou sincronizada com sucesso");
   })
@@ -113,3 +154,4 @@ User.sync({ force: true })
   });
 
 PasswordHistories.sync({ force: false });
+UserSessions.sync({ force: false });

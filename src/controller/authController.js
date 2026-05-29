@@ -1,3 +1,4 @@
+import session from "express-session";
 import {
   createUser,
   loginUser,
@@ -12,6 +13,8 @@ import {
 } from "../service/authService.js";
 
 import { errorMap } from "../utils/errorMap.js";
+
+import { saveSessionService } from "../service/sessionService.js";
 
 export async function register(req, res) {
   try {
@@ -133,13 +136,25 @@ export const verifyTwoFactorCode = async (req, res) => {
       id: req.session.preAuth.IdUser,
     });
 
-    if (result.success) {
-      req.session.user = result.data;
-
-      delete req.session.preAuth;
-    }
-
     const status = errorMap[result.code] || 500;
+
+    if (!result.success) {
+      return res.status(status).json(result);
+    }
+    req.session.user = result.data;
+
+    delete req.session.preAuth;
+
+    const data = {
+      sessionId: req.sessionID,
+      userId: req.session.user.id,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    };
+    const resut_save_session = await saveSessionService(data);
+    if (!resut_save_session) {
+      throw new Error("Erro interno do sistema.");
+    }
 
     return res.status(status).json(result);
   } catch (err) {
