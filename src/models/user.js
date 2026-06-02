@@ -36,6 +36,7 @@ export const User = conn.define("users", {
   googleId: {
     type: DataTypes.STRING,
     allowNull: true,
+    unique: true,
   },
   activationToken: {
     type: DataTypes.STRING,

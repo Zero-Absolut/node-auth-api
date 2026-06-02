@@ -16,6 +16,8 @@ import { errorMap } from "../utils/errorMap.js";
 
 import { saveSessionService } from "../service/sessionService.js";
 
+import { deactivateSession } from "../service/sessionService.js";
+
 export async function register(req, res) {
   try {
     const { name, email, password } = req.body;
@@ -302,6 +304,9 @@ export const logout = async (req, res) => {
         code: "UNAUTHORIZED",
       });
     }
+
+    const sessionID = req.sessionID;
+    await deactivateSession(sessionID);
     req.session.destroy((err) => {
       if (err) {
         console.error("Erro ao destruir sessão.", err);

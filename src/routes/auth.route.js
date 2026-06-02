@@ -21,6 +21,8 @@ import {
   forgotPasswordController,
 } from "../controller/authController.js";
 
+import { meController } from "../controller/meController .js";
+
 const route = Router();
 
 route.post("/register", validateRules, validateRulesUser, register);
@@ -50,6 +52,6 @@ route.post(
   validTokenresetPassworController,
 );
 
-//route.post("/google", googleLogin)
+route.get("/me", meController);
 
 export default route;

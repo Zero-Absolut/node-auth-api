@@ -35,7 +35,18 @@ export const validateSessionService = async (sessionId) => {
       return {
         success: false,
         message: "Sessão inativa",
-        code: "SESSION_INATIVE",
+        code: "SESSION_INACTIVE",
+      };
+    }
+
+    if (valid_session.expiresAt < new Date()) {
+      valid_session.isActive = false;
+      await valid_session.save();
+
+      return {
+        success: false,
+        message: "Sessão expirada.",
+        code: "SESSION_EXPIRED",
       };
     }
 
@@ -46,6 +57,29 @@ export const validateSessionService = async (sessionId) => {
     };
   } catch (err) {
     console.error("Erro ao acessar base de dados", err);
+
+    throw err;
+  }
+};
+
+export const deactivateSession = async (sessionID) => {
+  try {
+    const session = await UserSessions.findOne({
+      where: {
+        sessionId: sessionID,
+      },
+    });
+
+    if (!session) {
+      return false;
+    }
+
+    session.isActive = false;
+    await session.save();
+
+    return;
+  } catch (err) {
+    console.error("Erro ao acessar base de dados.", err);
 
     throw err;
   }
