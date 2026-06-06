@@ -49,6 +49,9 @@ export const validateSessionService = async (sessionId) => {
         code: "SESSION_EXPIRED",
       };
     }
+    valid_session.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await valid_session.save();
 
     return {
       success: true,
