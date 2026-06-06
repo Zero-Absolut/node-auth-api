@@ -122,6 +122,43 @@ export const UserSessions = conn.define("user_sessions", {
   },
 });
 
+//entidade logs
+
+export const UserLogs = conn.define("user_logs", {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+
+  action: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+
+  description: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+});
+
+User.hasMany(UserLogs, {
+  foreignKey: "userId",
+  onDelete: "CASCADE",
+});
+
+UserLogs.belongsTo(User, {
+  foreignKey: "userId",
+  constraints: true,
+});
+
+//fim logs
+
 User.hasMany(UserSessions, {
   foreignKey: "userId",
   onDelete: "CASCADE",
@@ -156,3 +193,4 @@ User.sync({ force: false })
 
 PasswordHistories.sync({ force: false });
 UserSessions.sync({ force: false });
+UserLogs.sync({ force: false });

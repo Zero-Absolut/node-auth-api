@@ -1,4 +1,4 @@
-import { User, PasswordHistories } from "../models/user.js";
+import { User, PasswordHistories, UserLogs } from "../models/user.js";
 import { createHash } from "../utils/createHash.js";
 import { createToken } from "../utils/createToken.js";
 import { activeUserTemplate } from "../templates/activeUser.js";
@@ -61,6 +61,11 @@ export async function createUser(value) {
         code: "USER_CREATED_EMAIL_FAILED",
       };
     }
+    await UserLogs.create({
+      userId: newUser.id,
+      action: "REGISTER",
+      description: "Conta criada com sucesso.",
+    });
 
     return {
       success: true,
@@ -115,6 +120,12 @@ export const userActivateAccount = async (token) => {
     user.activationToken = null;
     user.tokenExpires = null;
     await user.save();
+
+    await UserLogs.create({
+      userId: user.id,
+      action: "ACCOUNT_ACTIVATED",
+      description: "Conta ativada com sucesso.",
+    });
 
     return {
       success: true,
@@ -248,6 +259,12 @@ export const loginUser = async (data) => {
         userId: user.id,
       };
     }
+    console.log("=== DEBUG LOGIN ===");
+    console.log("email:", email);
+    console.log("password recebida:", password);
+    console.log("user encontrado:", user?.toJSON?.() || user);
+    console.log("user.password:", user?.password);
+    console.log("===================");
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
@@ -258,6 +275,12 @@ export const loginUser = async (data) => {
       if (user.failed_login_attempts === 5) {
         user.isBlocked = true;
         await user.save();
+
+        await UserLogs.create({
+          userId: user.id,
+          action: "ACCOUNT_BLOCKED",
+          description: "Conta bloqueada por uso de senhas erradas.",
+        });
 
         return {
           success: false,
@@ -360,6 +383,12 @@ export const validateTwoFactorCode = async (data) => {
     user.twoFactorCodeExpires = null;
     user.failed_login_attempts = 0;
     await user.save();
+
+    await UserLogs.create({
+      userId: user.id,
+      action: "LOGIN",
+      description: "Usuário realizou login.",
+    });
 
     return {
       success: true,
@@ -567,6 +596,12 @@ export const validateUnlockTokenService = async (token) => {
     user.isBlocked = false;
     await user.save();
 
+    await UserLogs.create({
+      userId: user.id,
+      action: "ACCOUNT_UNLOCKED",
+      description: "Conta desbloqueada com sucesso.",
+    });
+
     return {
       success: true,
       message: "Conta desbloqueada com sucesso.",
@@ -738,6 +773,12 @@ export const validTokenresetPasswordService = async (data) => {
     user.password = passwordHash;
 
     await user.save();
+
+    await UserLogs.create({
+      userId: user.id,
+      action: "PASSWORD_RESET_SUCCESS",
+      description: "Senha alterada.",
+    });
 
     return {
       success: true,

@@ -21,6 +21,14 @@ import {
   forgotPasswordController,
 } from "../controller/authController.js";
 
+import {
+  changeUserNameController,
+  changeUserPasswordController,
+  deleteAccountController,
+} from "../controller/preferenceController.js";
+
+import { requireAuth } from "../middlewares/authUser.js";
+
 import { meController } from "../controller/meController .js";
 
 const route = Router();
@@ -52,6 +60,12 @@ route.post(
   validTokenresetPassworController,
 );
 
-route.get("/me", meController);
+route.get("/me", requireAuth, meController);
+
+route.put("/change-name", changeUserNameController);
+
+route.put("/change-password", changeUserPasswordController);
+
+route.delete("/delete-account", deleteAccountController);
 
 export default route;

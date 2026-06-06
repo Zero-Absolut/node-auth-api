@@ -11,7 +11,10 @@ export const meController = async (req, res) => {
       });
     }
 
-    const result = await meService(req.session.user.id);
+    const result = await meService(
+      req.session.user.id,
+      req.headers["user-agent"],
+    );
 
     console.log(result.dataValues);
 

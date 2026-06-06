@@ -1,7 +1,10 @@
-import { validateSessionService } from "../services/sessionService.js";
+import { validateSessionService } from "../service/sessionService.js";
 import { errorMap } from "../utils/errorMap.js";
 
 export const requireAuth = async (req, res, next) => {
+  console.log("=== MIDDLEWARE AUTH ===");
+  console.log("Session ID:", req.sessionID);
+  console.log("Session User:", req.session.user);
   try {
     if (!req.session.user) {
       return res.status(401).json({

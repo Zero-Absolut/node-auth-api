@@ -1,6 +1,12 @@
-import { User, PasswordHistories, UserSessions } from "../models/user.js";
+import {
+  User,
+  PasswordHistories,
+  UserSessions,
+  UserLogs,
+} from "../models/user.js";
+import { UAParser } from "ua-parser-js";
 
-export const meService = async (id) => {
+export const meService = async (id, userAgent) => {
   try {
     const user = await User.findByPk(id, {
       attributes: [
@@ -11,6 +17,7 @@ export const meService = async (id) => {
         "isActive",
         "isBlocked",
         "createdAt",
+        "googleId",
       ],
     });
 
@@ -40,10 +47,36 @@ export const meService = async (id) => {
       },
     });
 
+    const activeSessionsUser = await UserSessions.findOne({
+      where: {
+        userId: user.id,
+        isActive: true,
+      },
+    });
+    const logs = await UserLogs.findAll({
+      where: {
+        userId: user.id,
+      },
+      attributes: ["id", "action", "description", "createdAt"],
+      order: [["createdAt", "DESC"]],
+      limit: 20,
+    });
+    const parser = new UAParser(userAgent);
+
+    const browserName = parser.getBrowser().name || "Desconhecido";
+    const osName = parser.getOS().name || "Desconhecido";
+
+    const deviceInfo = `${browserName} - ${osName}`;
+    console.log("passwordHistories", passwordHistories);
+    console.log("logs", logs);
     const data = {
-      user: user,
+      user,
       passwords: passwordHistories,
-      passords: totalPasswordChanges,
+      passwordsChange: totalPasswordChanges,
+      activeSessions,
+      activeSessionsUser,
+      browser: deviceInfo,
+      logs,
     };
 
     return {
